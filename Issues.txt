@@ -1,0 +1,4 @@
+- Rank is not working
+- Team selection still not giving equal number of games to players
+- SELECT * FROM public.get_games_for_player(10); shows Noah has played 2 games. player_stats_by_club shows he's played 17 ! Which one is wrong? Also player stats by season says he's played 11 in season 4 and 6 in season 5. Total number of games played all together is 16 ! ---> Resolved now, but check it.
+- Minutes since last game (in Report number of games played by each player) isnt displaying the right number of minutes. for example if someone has just finished playing a game, then their mins, last game should show as 0 or 1 or whatever. The value was 59 for one example i saw. It was 10 for another player who had played the last game.

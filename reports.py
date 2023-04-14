@@ -48,7 +48,6 @@ def report_player_stats_by_session(club_id, season_id):
 def report_session_games_played(club_id, season_id):
 
     session_id = input("Enter session ID (leave blank to get last session ID): ").strip()
-
     if not session_id:
         session_id = get_games_played_last_session_id(club_id)
     else:
@@ -92,10 +91,15 @@ def report_session_games_played(club_id, season_id):
             for game in games_played:
                 game_id, date_time, team1_players, team2_players, winning_team, duration, game_selection = game
                 date_time_str = date_time.strftime("%Y-%m-%d %H:%M")
+                if game_selection is None:
+                    game_selection_str = "No selection"
+                else:
+                    game_selection_str = game_selection
                 print("{:<8} {:<20} {:<35} {:<35} {:<35} {:<20} {:<15}".format(
-                    game_id, date_time_str, team1_players, team2_players, winning_team, duration, game_selection
+                    game_id, date_time_str, team1_players, team2_players, winning_team, duration, game_selection_str
                 ))
 
+    return session_id
 
 
 def report_session_player_games_played(club_id, session_id):

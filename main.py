@@ -8,7 +8,7 @@ from clubs import display_clubs, set_club, display_club_owner_details
 from seasons import get_season, create_new_season
 from sessions import create_session, sessions_players_select, check_session_has_players, end_session_for_player
 from players import display_club_players, display_club_players_not_playing_today, display_club_players_playing_today
-from games import select_teams, end_game, set_options
+from games import select_teams, end_game, set_options, delete_played_game
 from reports import report_player_stats_by_session, report_session_games_played, report_session_player_games_played
 from utils import print_seperator_tilda, print_title
 
@@ -131,7 +131,7 @@ def main():
                     if maintenance_choice == 1:
                         manual_game_start()
                     elif maintenance_choice == 2:
-                        delete_played_game()
+                        delete_played_game(club_id, season_id)
                     elif maintenance_choice == 3:
                         modify_a_game_score()
                     elif maintenance_choice == 4:

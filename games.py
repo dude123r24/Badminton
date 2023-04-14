@@ -10,6 +10,7 @@ from utils import print_seperator_tilda, print_seperator_star, print_error, prin
 from players import get_player_name
 from sessions import get_session_id, get_games_played_last_session_id
 from prettytable import PrettyTable, ALL
+from reports import report_session_games_played
 
 
 def select_teams(club_id, season_id, session_id):
@@ -393,6 +394,120 @@ def get_ongoing_games(session_id):
             print(" ")
             return games
 
+
+
+def game_exists(game_id):
+    with get_connection() as conn:
+        with get_cursor(conn) as cur:
+            cur.execute("""SELECT COUNT(*) FROM games WHERE id = %s""", (game_id,))
+            return cur.fetchone()[0] == 1
+
+
+
+
+def delete_played_game(club_id, season_id):
+
+    # Get the list of games played today
+    try:
+        report_session_games_played(club_id, season_id)
+    except TypeError:
+        print_info("No games were played for this session.")
+        return
+
+    # Get the game ID to delete
+    while True:
+        game_id_input = input("Enter game ID to delete (or press enter to go back): ")
+        if game_id_input == "" or game_id_input == "0":
+            return
+        try:
+            game_id = int(game_id_input)
+            if not game_exists(game_id):
+                print_error("Invalid game ID. Please enter a valid game ID.")
+                continue
+            break
+        except ValueError:
+            print_error("Invalid game ID. Please enter a valid game ID.")
+
+    # Get the game details
+    with get_connection() as conn:
+        with get_cursor(conn) as cur:
+            try:
+                cur.execute("""SELECT session_id, team_1, team_2, team_1_score, team_2_score, winning_team, team_1_player_names, team_2_player_names, game_start_time, game_end_time
+                                FROM games_view
+                                WHERE game_id = %s""",
+                            (game_id,))
+                game = cur.fetchone()
+            except UndefinedColumn:
+                cur.execute("""SELECT team1_id, team2_id, team1_score, team2_score
+                                FROM games
+                                WHERE id = %s""",
+                            (game_id,))
+                game = cur.fetchone()
+
+    session_id = game[0]
+    team_1_id = game[1]
+    team_2_id = game[2]
+    team_1_score = game[3]
+    team_2_score = game[4]
+    winning_team_id = game[5]
+    team_1_player_names = game[6]
+    team_2_player_names = game[7]
+    game_start_time = game[8]
+    game_end_time = game[9]
+    if team_2_score == team_1_score:
+        draw = 'yes'
+    else: 
+        draw = 'no'
+                
+    # Confirm deletion
+    print(f"Are you sure you want to delete game {game_id}? (y/n)")
+    choice = input().lower()
+    if choice != "y":
+        return
+
+    # Delete the game
+    with get_connection() as conn:
+        with get_cursor(conn) as cur:
+            cur.execute("""DELETE FROM games WHERE id = %s""", (game_id,))
+
+
+            # Update player stats
+            if draw == 'yes':
+                 # Update sessions_players for a draw
+                cur.execute("""UPDATE sessions_players sp
+                                SET played = played - 1, draw = draw -1
+                                WHERE sp.session_id = %s AND sp.player_id IN (
+                                    SELECT tp.player_id
+                                    FROM teams_players tp
+                                    WHERE tp.team_id IN (%s, %s)
+                                )""",
+                            (session_id, team_1_id, team_2_id))
+            else:
+                cur.execute("""UPDATE sessions_players sp
+                                SET played = played - 1
+                                WHERE sp.session_id = %s AND sp.player_id IN (
+                                    SELECT tp.player_id
+                                    FROM teams_players tp
+                                    WHERE tp.team_id IN (%s, %s)
+                                )""",
+                            (session_id, team_1_id, team_2_id))
+                
+                # Update sessions_players for winning players
+                cur.execute("""UPDATE sessions_players sp
+                                SET won = won - 1
+                                WHERE sp.session_id = %s AND sp.player_id IN (
+                                    SELECT tp.player_id
+                                    FROM teams_players tp
+                                    WHERE tp.team_id = %s
+                                )""",
+                            (session_id, winning_team_id))
+        conn.commit()
+
+    print_info("Game deleted successfully!")
+
+
+
+           
 
 
 

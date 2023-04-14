@@ -57,6 +57,8 @@ def end_session_for_player(club_id, session_id):
         print_info(f"Player {player_id} has been removed from the session.")
         break
 
+
+
 # Select which players are playing in today's session
 def sessions_players_select(club_id, season_id, session_id):
     players_playing = display_club_players_playing_today (club_id, session_id)
@@ -179,6 +181,7 @@ def get_session_id(club_id, season_id):
                 return None
 
 
+
 def get_games_played_last_session_id(club_id):
     with get_connection() as conn:
         with get_cursor(conn) as cur:
@@ -190,6 +193,8 @@ def get_games_played_last_session_id(club_id):
             """, (club_id,))
             last_session = cur.fetchone()[0]
             return last_session
+
+
 
 
 

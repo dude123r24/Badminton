@@ -1,3 +1,5 @@
+# Module - reports.py
+
 from tabulate import tabulate
 from datetime import datetime, timedelta
 from db import get_connection, get_cursor
@@ -43,7 +45,6 @@ def report_player_stats_by_session(club_id, season_id):
                 print("{:<20} {:<15} {:<15} {:<15} {:<20} {:<20} {:<20} {:<20}".format(*stats))
 
 
-
 def report_session_games_played(club_id, season_id):
 
     session_id = input("Enter session ID (leave blank to get last session ID): ").strip()
@@ -68,7 +69,8 @@ def report_session_games_played(club_id, season_id):
                                   array_to_string(gv.team_1_player_names, ' & ') AS team1_players,
                                   array_to_string(gv.team_2_player_names, ' & ') AS team2_players,
                                   winner.name || ' & ' || winner_partner.name AS winning_team,
-                                  EXTRACT(MINUTE FROM (gv.game_end_time - gv.game_start_time)) AS duration
+                                  EXTRACT(MINUTE FROM (gv.game_end_time - gv.game_start_time)) AS duration,
+                                  gv.game_selection
                            FROM games_view gv
                            JOIN (SELECT team_id, player_id, ROW_NUMBER() OVER (PARTITION BY team_id ORDER BY player_id) AS rn FROM teams_players) AS winning_team_player1 ON gv.winning_team = winning_team_player1.team_id AND winning_team_player1.rn = 1
                            JOIN players AS winner ON winning_team_player1.player_id = winner.id
@@ -81,18 +83,19 @@ def report_session_games_played(club_id, season_id):
 
             # Print results in tabular format
             print(" ")
-            print_table_header_seperator(150)
-            print("\033[1m{:<8} {:<20} {:<35} {:<35} {:<35} {:<20}\033[0m".format(
-                "Game ID", "Date & Time", "Team 1", "Team 2", "Winner", "Duration (min)"
+            print_table_header_seperator(175)
+            print("\033[1m{:<8} {:<20} {:<35} {:<35} {:<35} {:<20} {:<15}\033[0m".format(
+                "Game ID", "Date & Time", "Team 1", "Team 2", "Winner", "Duration (min)", "Game Selection"
             ))
-            print_table_header_seperator(150)
+            print_table_header_seperator(175)
 
             for game in games_played:
-                game_id, date_time, team1_players, team2_players, winning_team, duration = game
+                game_id, date_time, team1_players, team2_players, winning_team, duration, game_selection = game
                 date_time_str = date_time.strftime("%Y-%m-%d %H:%M")
-                print("{:<8} {:<20} {:<35} {:<35} {:<35} {:<20}".format(
-                    game_id, date_time_str, team1_players, team2_players, winning_team, duration
+                print("{:<8} {:<20} {:<35} {:<35} {:<35} {:<20} {:<15}".format(
+                    game_id, date_time_str, team1_players, team2_players, winning_team, duration, game_selection
                 ))
+
 
 
 def report_session_player_games_played(club_id, session_id):

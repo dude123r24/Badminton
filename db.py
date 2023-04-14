@@ -1,4 +1,4 @@
-# db.py
+# Module - db.py
 import psycopg2
 from contextlib import contextmanager
 from config_local import DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT

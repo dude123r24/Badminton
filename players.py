@@ -1,4 +1,4 @@
-# players.py
+# Module - players.py
 from db import get_connection, get_cursor
 from utils import print_seperator_tilda, print_error, print_info
 

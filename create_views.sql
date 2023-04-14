@@ -13,7 +13,8 @@ AS SELECT g.id AS game_id,
     array_agg(DISTINCT p1.name) AS team_1_player_names,
     array_agg(DISTINCT p2.name) AS team_2_player_names,
     game_start_time,
-    game_end_time
+    game_end_time,
+    game_selection
 FROM games g
     JOIN sessions s ON g.session_id = s.id
     JOIN teams t1 ON g.team1_id = t1.id

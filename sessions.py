@@ -1,4 +1,4 @@
-# sessions.py
+# Module - sessions.py
 import sys
 from datetime import datetime, date
 from db import get_connection, get_cursor
@@ -93,14 +93,11 @@ def sessions_players_select(club_id, season_id, session_id):
         with get_cursor(conn) as cur:
             for player_id in playing_today:
                 try:
-                    cur.execute("""INSERT INTO sessions_players (session_id, player_id, active)
-                                   VALUES (%s, %s, 'Y')""",
-                                (session_id, player_id))
-                except UniqueViolation as e:
-                    print_error (f"Cannot add. Player {player_id} is already added to the session players.")
-                    #print(f"Error: Cannot add. Player {player_id} is already added to the session players.")
-                    conn.rollback()
-                    continue
+                    cur.execute("""
+                        INSERT INTO sessions_players (session_id, player_id, active)
+                        VALUES (%s, %s, 'Y')
+                        ON CONFLICT (session_id, player_id) DO UPDATE SET active = 'Y';
+                    """, (session_id, player_id))
                 except Exception as e:
                     print(f"Error: cannot add player {player_id} to session players: {e}")
                     conn.rollback()
@@ -113,6 +110,7 @@ def sessions_players_select(club_id, season_id, session_id):
     for player_id in playing_today:
         player = next(player for player in players if player[0] == player_id)
         print(f"{player_id}. {player[1]}")
+
 
 
 # Create a session

@@ -85,7 +85,8 @@ CREATE TABLE IF NOT EXISTS games (
    team2_score integer NOT NULL,
    winner_team_id integer REFERENCES teams(id),
    game_start_time timestamp NOT NULL,
-   game_end_time timestamp
+   game_end_time timestamp,
+   game_selection VARCHAR(15)
 );
 
 CREATE TABLE  IF NOT EXISTS club_options (

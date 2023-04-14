@@ -1,3 +1,6 @@
+# Module - main.py
+# This is the main entry point of the program
+
 import os
 import sys
 from login import login
@@ -53,13 +56,13 @@ def main():
 
         # Show menu
         while True:
-            print_title("Menu:")
+            print_title(f"Menu: (Session ID:{session_id})")
             print("1. Select/View players playing today")
             print("2. Start game")
             print("3. End game")
             print("4. End session for player")
             print("5. Reports")
-            print("6. Set options")
+            print("6. Maintenance")
             print("7. Display club owner details")
             print("0. Exit")
             try:
@@ -90,7 +93,6 @@ def main():
                         if report_choice.strip() == "":
                             break
                         report_choice = int(report_choice)
-                        report_choice=int(report_choice)
                     except ValueError:
                         print("Invalid input. Please enter a number.")
                         continue
@@ -106,7 +108,40 @@ def main():
                     else:
                         print("Invalid choice")
             elif choice == 6:
-                set_options(club_id)
+
+                while True:
+                    print_title("Maintenance:")
+                    print("1. Select a custom game")
+                    print("2. Delete a played game")
+                    print("3. Modify a game score")
+                    print("4. Set options")
+                    print("0. Back to main menu")
+
+                    try:
+                        maintenance_choice = input("Enter your choice: ")
+                        if not maintenance_choice:
+                            break
+                        if maintenance_choice.strip() == "":
+                            break
+                        maintenance_choice = int(maintenance_choice)
+                    except ValueError:
+                        print("Invalid input. Please enter a number.")
+                        continue
+
+                    if maintenance_choice == 1:
+                        manual_game_start()
+                    elif maintenance_choice == 2:
+                        delete_played_game()
+                    elif maintenance_choice == 3:
+                        modify_a_game_score()
+                    elif maintenance_choice == 4:
+                        set_options(club_id)
+                    elif maintenance_choice == 0:
+                        break  # go back to the main menu
+                    else:
+                        print("Invalid choice")
+
+
             elif choice == 7:
                 display_club_owner_details(club_id, session_id)
             elif choice == 0:

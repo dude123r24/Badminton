@@ -1,4 +1,4 @@
-# login.py
+# Module - login.py
  
 import sys
 from db import get_connection, get_cursor

@@ -178,8 +178,8 @@ def select_teams_random(club_id, session_id, players):
                         (team2_id, player3_id, team2_id, player4_id))
 
             # Insert the game
-            cur.execute("""INSERT INTO games (session_id, team1_id, team2_id, game_start_time, team1_score, team2_score)
-                            VALUES (%s, %s, %s, NOW(), 0, 0)
+            cur.execute("""INSERT INTO games (session_id, team1_id, team2_id, game_start_time, team1_score, team2_score, game_selection)
+                            VALUES (%s, %s, %s, NOW(), 0, 0, 'random')
                             RETURNING id""",
                         (session_id, team1_id, team2_id))
             game_id = cur.fetchone()[0]

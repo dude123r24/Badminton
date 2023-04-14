@@ -1,4 +1,4 @@
-# seasons.py
+# Module - seasons.py
 
 from datetime import datetime
 from db import get_connection, get_cursor

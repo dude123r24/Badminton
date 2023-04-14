@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION public.get_games_for_player(p_player_id INTEGER)
+CREATE OR REPLACE FUNCTION get_games_for_player(p_player_id INTEGER)
 RETURNS TABLE (
     game_id INTEGER,
     club_id INTEGER,
@@ -43,4 +43,4 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Sample usage : SELECT * FROM public.get_games_for_player(1);
+-- Sample usage : SELECT * FROM get_games_for_player(1);

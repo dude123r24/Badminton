@@ -1,0 +1,226 @@
+Act like an expert Python programmer to write a program using Postgrsql, Python and Flask to maintain badminton clubs. Each club has seasons which can last 3 to 4 months. Each season has days when a session is played. The games played in a session could be singles or doubles. The program should allow manual team member selection or automatic player assignment to teams. When players are automatically assigned, care should be taken that all players playing that day get equal amount of games, based on how long they've been waiting. Try and assign unique pairs where possible. Maintain each games's scores. Provide player, team stats for the session, season and club. Allow only administrator to amend scores and delete games.
+
+
+
+
+Table descriptions:
+===================
+
+Clubs host seasons, seasons have many sessions, sessions have many games, games have 2 teams of 2 players each.
+
+1. players is a table to store badminton players personal information and login password.
+2. clubs is a table to store badminton club names and its details like city and the player that owns the club.
+3. players_clubs is a table to store which badminton player plays in which badminton clubs. One player can be playing for multiple clubs
+4. seasons table is needed as badminton clubs get subscription money from players on a 3 or 4 monthly basis. One season can belong to only one club. A season has many days where a sessions is played. In one session there are many games being played.
+5. sessions is a table to store details on the session like how many courts are available and players per court allowed. These help make up teams
+6. sessions_players is a table to store which badminton player in the club played in the session on the day. It also stores how many games a player played, how many they won and how many they drew. The table gets updated after each game ends.
+7. teams is a table that has teams id. it does not store anything else
+8. teams_players is a table that determines which players played as a team in a game.
+9. games is a table that stores the teams that played the game. There are 2 teams that play a game. It also stores the team score and the winning team id. it also stores the game start time and game end time.
+10. club_options is a table to store preferences for a club. The option_name stores the option and option_value stores the option's value.
+
+
+Table structures for the tables mentioned in the code:
+
+players: id (serial primary key), name (varchar(75) not null), email (varchar(75) not null), phone (varchar(20) not null), password (varchar(128) not null), date_joined (timestamp not null default current_timestamp)
+
+clubs: id (serial primary key), name (varchar(255) not null), date_formed (timestamp not null default current_timestamp), no_of_courts (integer not null default 0), created_by (integer not null references players(id)), addr_line1 (varchar(255) not null), locality (varchar(255) not null), city (varchar(255) not null), country (varchar(255) not null), postcode (varchar(255) not null)
+
+players_clubs: id (serial primary key), club_id (integer not null references clubs(id)), player_id (integer not null references players(id)), role (varchar(25) not null), grade (varchar(3) not null), ranking (integer not null), approved (boolean not null default false), archived (boolean not null default false)
+
+seasons: id (serial primary key), club_id (integer not null references clubs(id)), date_from (date not null), date_to (date not null)
+
+sessions: id (serial primary key), season_id (integer not null references seasons(id)), club_id (integer not null references clubs(id)), session_date (date not null), no_of_courts (integer not null), no_of_players_per_court (integer not null), players_played (text not null default 0)
+
+sessions_players: id (serial not null), session_id (integer not null references sessions(id)), player_id (integer not null references players(id)), active (varchar not null default 'Y'::character varying), played (integer not null default 0), won (integer not null default 0), draw (integer not null default 0)
+
+teams: id (serial primary key)
+
+teams_players: team_id (integer not null references teams(id)), player_id (integer not null references players(id))
+
+games: id (serial primary key), session_id (integer not null references sessions(id)), team1_id (integer not null references teams(id)), team2_id (integer not null references teams(id)), team1_score (integer not null), team2_score (integer not null), winner_team_id (integer references teams(id)), game_start_time (timestamp not null), game_end_time (timestamp), game_selection (varchar(15))
+
+club_options: id (serial), club_id (integer not null references clubs(id)), option_name (varchar(255) not null), option_value (varchar(255) not null), created_at (timestamp default now())
+
+
+---
+
+view structures without the code to create them:
+
+games_view: game_id, club_id, season_id, session_id, team_1, team_2, team_1_score, team_2_score, winning_team, team_1_player_ids, team_2_player_ids, team_1_player_names, team_2_player_names, game_start_time, game_end_time, game_selection, 
+
+
+player_stats_by_session: club_id, season_id, session_id, session_date, player_id, player_name, played, won, draw, win_percentage, avg_victory_margin, minutes_since_last_game, session_rank
+
+player_stats_by_season: club_id, season_id, player_id, player_name, games_played, games_won, games_draw, win_percentage, avg_victory_margin, season_rank, date_from, date_to
+
+player_stats_by_club: club_id, club_name, club_city, club_country, club_postcode, player_id, player_name, games_played, games_won, games_draw, win_percentage, avg_victory_margin, club_rank
+
+player_combinations_by_session: club_id, season_id, session_id, player_id_1, player_name_1, player_id_2, player_name_2, games_played, games_won, games_lost, games_draw, win_percentage, avg_margin_victory, session_rank
+
+player_combinations_by_season: season_id, club_id, player_id_1, player_name_1, player_id_2, player_name_2, games_played, games_won, games_lost, games_draw, win_percentage, avg_margin_victory, season_rank
+
+player_combinations_by_club: club_id, player_id, player_name, team_id, game_id, game_result, team1_score, team2_score
+
+
+
+Prompt: You are tasked with building a Python program for a badminton club to manage their games, players, and sessions. The program should have the following functionalities:
+
+
+Write a Python program called games.py that includes all the required functions and imports.
+1. select_teams: a function that selects teams for a game based on a chosen algorithm (random or levels). The function should ensure that there are enough players to form a game and that the number of players per team does not exceed a specified limit.
+2. end_game: a function that ends an ongoing game and updates the scores and stats for the winning and losing players.
+delete_played_game: a function that deletes a previously played game and updates the stats for the players involved.
+get_ongoing_games: a function that retrieves a list of ongoing games for a given session and displays them in a table format.
+To accomplish this, you will need to import various modules, such as random, tabulate, datetime, PrettyTable, and custom modules such as db, utils, players, sessions, and reports. You will also need to write helper functions such as get_team, get_team_player_ids, update_player_stats, and game_exists.
+3. Write a function to Select a custom game. It accepts parameters (club_id, season_id, session_id)
+It asks the user to "Enter session ID (leave blank to get last session ID)". If the user leaves it blank, it uses the session_id passed to the function. 
+It shows the player id and player names of users that played that day from sessions_players.
+It asks the user to input id's for player 1 id and player 2 id for team 1.
+It asks the user to input id's for player 1 id and player 2 id for team 2.
+Then it *******************
+
+
+
+
+Write Python code for a module called "login.py" that will have a function called "login". The function will prompt the user to enter an email and password to login. It will then check the credentials against a database of players and return the player ID if successful. If the user enters "0" as the email, the function should exit the program. The module should also have a global variable called "global_player_id_logged_in" that will store the player ID of the user that is currently logged in.
+The code should import the following modules: sys, db, and utils. The "get_connection" and "get_cursor" functions from the "db" module should be used to connect to the database. The "print_error" function from the "utils" module should be used to display error messages to the user.
+
+
+Create a Python script named "main.py" that serves as the main entry point for your program. The script should import various functions and classes from other modules in your project, including the following:
+login() function from the login module.
+display_clubs(), set_club(club_id), and display_club_owner_details(club_id, session_id) functions from the clubs module.
+get_season(club_id) and create_new_season(club_id) functions from the seasons module.
+create_session(club_id) and end_session_for_player(club_id, session_id) functions from the sessions module.
+select_teams(club_id, season_id, session_id), end_game(club_id, season_id, session_id), set_options(club_id), and delete_played_game(club_id, season_id) functions from the games module.
+report_player_stats_by_session(club_id, season_id), report_session_games_played(club_id, season_id), and report_session_player_games_played(club_id, session_id) functions from the reports module.
+print_title(title: str), print_seperator_tilda(), and print_error(error_message: str) functions from the utils module.
+The main() function should contain the following steps:
+Clear the console using os.system('clear').
+Prompt the user to log in using the login() function. If the login fails, prompt the user to try again or exit.
+Prompt the user to select a club using the display_clubs() and set_club(club_id) functions. If the club selection fails, prompt the user to try again or exit.
+Get the active season for the selected club using the get_season(club_id) function.
+Create a new session for the selected club using the create_session(club_id) function.
+Show the main menu options and prompt the user to select an action. The main menu should include the following options:
+Select/View players playing today
+Start game
+End game
+End session for player
+Reports
+Maintenance
+Display club owner details
+Exit
+Depending on the user's selection, call the appropriate functions from the other modules to perform the desired action.
+Return to the main menu until the user chooses to exit the program using the sys.exit() function.
+
+
+Create a Python module named "players.py" that includes the following functions:
+1. `display_club_players(club_id)`: This function should display all players in the specified club, sorted by ID. It should return a list of tuples, where each tuple contains the player ID and name.
+2. `display_club_players_not_playing_today(club_id, session_id)`: This function should display all players in the specified club who are not currently active in the specified session. It should return a list of tuples, where each tuple contains the player ID and name.
+3. `display_club_players_playing_today(club_id, session_id)`: This function should display all players in the specified club who are currently active in the specified session. It should return a list of tuples, where each tuple contains the player ID and name.
+4. `get_player_name(player_id)`: This function should return the name of the player with the specified ID. If the player is not found, it should print an error message and return None.
+Make sure to import the necessary functions from the `db` and `utils` modules.
+
+
+Create a python modules called reports.py that includes the following functions:
+1. Create a Python function called report_player_stats_by_session that takes two arguments: club_id and season_id. The function should prompt the user to enter a session ID (leave blank to get the last session ID) and then query the database to retrieve player stats for that session. The player stats should be printed out in a table with the following columns: Player, Games Played, Games Won, Games Lost, Win Percentage, Avg Victory Margin, Mins, Last Game, Rank. The table should be sorted by rank, with the highest-ranked player at the top. If no games were played for the selected session ID, the function should print an error message. The function should use the get_connection, get_cursor, print_error, and print_table_header_seperator functions from the db and utils modules.
+2. Create a Python function called `report_session_games_played` that takes in two arguments: `club_id` and `season_id`. The function should prompt the user to enter a session ID, defaulting to the last session if the user does not provide one. It should then use the provided club ID, season ID, and session ID to fetch a list of games played in that session using the `games_view` view.
+The function should then print the list of games played in a tabular format, with the following columns: `Game ID`, `Date & Time`, `Team 1`, `Team 2`, `Winner`, `Duration (min)`, and `Game Selection`. The `Date & Time` column should display the game start time in the format `YYYY-MM-DD HH:MM`. The `Winner` column should display the names of the players on the winning team separated by "&". The `Game Selection` column should display the game selection if one was made, and "No selection" otherwise.
+The function should return the session ID used to fetch the list of games played.
+
+
+Create a module called seasons.py. The module should contain two functions:
+get_season(club_id): This function should take in a club_id integer as an argument and return the season_id integer for the current active season for the given club. If there is no active season found, it should call the create_new_season(club_id) function to create a new season.
+create_new_season(club_id): This function should prompt the user to enter the start date and end date of the new season in the format "YYYY-MM-DD". It should then insert a new row into the seasons table with the given club_id, date_from, and date_to, and return the season_id of the newly created season. If there was an error creating the new season, it should return None.
+
+
+Create a python modules called sessions.py that includes the following functions:
+1. Create a function called end_session_for_player that takes in two parameters club_id and session_id. The function should first call the function display_club_players_playing_today from the players module with the club_id and session_id parameters to get the list of players playing today. If there are no players playing today, the function should print an error message and return.
+The function should then enter a loop that prints a prompt to the user to enter a player ID to end their session or press ENTER to finish. If the user enters nothing and presses ENTER, the loop should break.
+If the user enters a non-integer value or an invalid player ID, the function should print an error message and continue to the next iteration of the loop.
+If the user enters a valid player ID, the function should check if the player is currently involved in any ongoing games for the current session. If the player is involved in any ongoing games, the function should print an error message and return None.
+If the player is not involved in any ongoing games, the function should update the sessions_players table in the database to set the player's active column to 'N' for the current session. The function should then print a message confirming that the player has been removed from the session and break out of the loop.
+2. create a function that allows the user to select which players will be playing in today's session.
+Write a Python function named sessions_players_select that takes three arguments:
+club_id: integer representing the ID of the club.
+season_id: integer representing the ID of the current season.
+session_id: integer representing the ID of the current session.
+The function should call two utility functions named display_club_players_playing_today and display_club_players_not_playing_today that take two arguments, club_id and session_id, and return the list of players playing today and the list of players not playing today, respectively.
+The function should then prompt the user to select which players are playing today by displaying the list of players not playing today and asking the user to enter the player ID. The function should keep prompting until the user enters "0" or an empty string.
+If the user enters a valid player ID, the function should check if the player is already selected. If the player is not already selected, the function should add the player to the list of players playing today and print a message to confirm the selection. If the player is already selected, the function should print a message to indicate that the player is already selected. If the player ID is not valid, the function should print an error message and prompt the user again.
+Finally, the function should insert the selected players into the sessions_players table by calling the insert_sessions_players function. The function should print the list of players playing today with their IDs and names.
+The function should have no return value.
+3. Create a Python function called create_session that takes a club_id integer as an argument. The function should use datetime.now() to get the current date and time, and then use the get_connection and get_cursor functions from the db module to connect to the database and create a new session.
+First, the function should call the get_season function from the seasons module with the club_id argument to get the ID of the season that is active for the club today. If there is no active season for the club, the function should print a message saying so and then call the create_new_season function from the seasons module with the club_id argument to create a new season for the club. The function should then set the season_id variable to the ID of the active season.
+Next, the function should use a SELECT statement to check if a session already exists for today's date for the given club_id. If a session already exists, the function should return the id of the existing session.
+If no session exists, the function should use another SELECT statement to retrieve the num_courts and max_players_per_court values from the club_options table in the database for the given club_id. If either of these options are missing, the function should print an error message using the print_error function from the utils module and then exit the function by calling the sys.exit() function.
+Finally, the function should use an INSERT statement to insert a new row into the sessions table in the database with the club_id, season_id, session_date, no_of_courts, and no_of_players_per_court values. The function should use RETURNING id to retrieve the ID of the new session, and then commit the transaction using conn.commit(). Finally, the function should return the ID of the new session.
+4. Create a function called get_session_id that takes club_id and season_id as parameters. The function should query the database to see if there is already a session going on for the given club_id and season_id on today's date. If a session is found, the function should return its id. If no session is found, the function should return None.
+The function should accomplish the following steps:
+Open a connection to the database
+Create a cursor object
+Execute a SELECT statement on the sessions table with the following criteria:
+club_id = the club_id parameter
+season_id = the season_id parameter
+session_date = the current date
+Fetch the first row of the result set
+If a row is found, return the value in the 'id' column
+If no row is found, return None
+5. Create a Python function called get_games_played_last_session_id that takes a single argument, club_id. Inside the function, use the get_connection() and get_cursor() functions to create a connection to a PostgreSQL database. Then, use the cursor to execute a SQL query that retrieves the maximum session ID from the games table where the session ID matches a session ID in the sessions table with a matching club_id. Assign the result to a variable called last_session. Finally, return the last_session variable.
+6. Create another Python function called players_playing_today that takes no arguments. Inside the function, use the get_connection() and get_cursor() functions to create a connection to a PostgreSQL database. Then, use the cursor to execute a SQL query that retrieves the player IDs of all active players for the current session where active = 'Y' in the sessions_players table. Assign the result to a variable called players_playing_today_list. Finally, return the players_playing_today_list variable.
+
+
+
+
+
+Create a Python module called `utils.py` with the following functions:
+- `print_seperator_tilda()`: prints a line of 80 tildes ("~").
+- `print_seperator_star()`: prints a line of 80 asterisks ("*").
+- `print_seperator_plus()`: prints a line of 80 plus signs ("+").
+- `print_table_header_seperator(length)`: prints a line of underscores ("_") with the given length.
+- `print_error(message)`: prints an error message surrounded by lines of plus signs ("+").
+- `print_title(message)`: prints a title message surrounded by lines of tildes ("~").
+- `print_info(message)`: prints an information message surrounded by lines of asterisks ("*").
+
+
+
+
+Functions Needed: 
+get_ongoing_games. accepts session_id. returns list of game_id
+print_ongoing_games. accepts list of game_id
+get_players_playing_games. accepts list of game_id. returns list of player_id
+get_players_playing_today. accepts session_id. returns list of player_id
+print_players_playing_today. accepts list of player_id
+get_player_name
+get_player_stats_by_session
+
+
+Functions I have:
+-- Games
+def delete_played_game(club_id, season_id):
+def end_game(club_id: int, season_id: int, session_id: int):
+def game_exists(game_id):
+def get_list_available_players(session_id):
+def get_list_players_already_in_game(session_id):
+def get_list_players_max_wait_time(session_id):
+def get_ongoing_games(session_id):
+def get_player_name(player_id):
+def get_team(team_id):
+def get_team_player_ids(team_id):
+def have_players_played_together(session_id, player_id_1, player_id_2):
+def insert_teams_and_game(session_id, team1, team2):
+def is_first_game_of_session(session_id):
+def is_first_game_of_session(session_id):
+def print_ongoing_games(games):
+def print_teams(team1, team2, game_id, start_time):
+def select_teams(club_id, season_id, session_id):
+def select_teams_levels(club_id, season_id, session_id):
+def select_teams_manual(club_id,season_id,session_id):
+def select_teams_random(session_id):
+def set_options(club_id):
+def update_list_variables(session_id):
+def update_player_stats(player_id: int, session_id: int, result: str):
+
+
+
+

@@ -15,5 +15,4 @@ DROP VIEW IF EXISTS club_player_stats ;
 DROP VIEW IF EXISTS player_stats_by_session ;
 DROP VIEW IF EXISTS player_combinations_by_session ;
 
-
 drop function public.get_games_for_player;

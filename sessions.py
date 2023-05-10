@@ -8,8 +8,6 @@ from utils import print_error, print_seperator_plus, print_info
 from seasons import get_season, create_new_season
 
 
-
-
 def end_session_for_player(club_id, session_id):
     while True:
         players_playing_today = display_club_players_playing_today(club_id, session_id)
@@ -194,6 +192,18 @@ def get_games_played_last_session_id(club_id):
             last_session = cur.fetchone()[0]
             return last_session
 
+def players_playing_today():
+    with get_connection() as conn:
+        with get_cursor(conn) as cur:
+            # Get the IDs of active players for today's session
+            cur.execute("""
+                SELECT player_id
+                FROM sessions_players
+                WHERE active = 'Y'
+            """)
+            players_playing_today_list = [row[0] for row in cur.fetchall()]
+
+    return players_playing_today_list
 
 
 

@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from db import get_connection, get_cursor
 from utils import print_seperator_tilda, print_seperator_star, print_error, print_info, print_table_header_seperator
 from players import get_player_name
-from sessions import get_session_id, get_games_played_last_session_id
+from sessions import get_session_id, get_games_played_last_session_id, players_playing_today 
 from prettytable import PrettyTable, ALL
 from reports import report_session_games_played
 
@@ -83,18 +83,45 @@ def select_teams(club_id, season_id, session_id):
 
 
 
+
 def select_teams_random(club_id, session_id, players):
-    def get_recent_teammates(session_id,player_id):
-        cur.execute("""
-            SELECT DISTINCT tp2.player_id, g.game_start_time
-            FROM games g
-            JOIN teams_players tp1 ON (g.team1_id = tp1.team_id OR g.team2_id = tp1.team_id)
-            JOIN teams_players tp2 ON (g.team1_id = tp2.team_id OR g.team2_id = tp2.team_id)
-            WHERE g.session_id = %s AND tp1.player_id = %s AND tp2.player_id != %s
-            ORDER BY g.game_start_time DESC
-            LIMIT 5
-        """, (session_id, player_id, player_id))
-        return {row[0] for row in cur.fetchall()}
+
+    def get_recent_teammates(session_id, player_id):
+        with get_connection() as conn:
+            with get_cursor(conn) as cur:
+                # Get the IDs of the 3 most recent sessions before the current session
+                cur.execute("""
+                    SELECT id
+                    FROM sessions
+                    WHERE club_id = %s AND id != %s
+                    ORDER BY session_date DESC
+                    LIMIT 3
+                """, (club_id, session_id))
+                recent_session_ids = [row[0] for row in cur.fetchall()]
+
+                # Get the IDs of all games played in the recent sessions
+                cur.execute("""
+                    SELECT DISTINCT g.id
+                    FROM games g
+                    JOIN sessions s ON g.session_id = s.id
+                    WHERE s.id IN %s
+                """, (tuple(recent_session_ids),))
+                recent_game_ids = [row[0] for row in cur.fetchall()]
+
+                # Get the player IDs and game start times of games played in the recent sessions
+                cur.execute("""
+                    SELECT tp.player_id, g.game_start_time
+                    FROM games g
+                    JOIN teams_players tp ON (g.team1_id = tp.team_id OR g.team2_id = tp.team_id)
+                    WHERE g.id IN %s AND tp.player_id != %s
+                    ORDER BY g.game_start_time DESC
+                    LIMIT 5
+                """, (tuple(recent_game_ids), player_id))
+                recent_teammate_info = cur.fetchall()
+
+                return {row[0] for row in recent_teammate_info}
+
+
 
     with get_connection() as conn:
         with get_cursor(conn) as cur:
@@ -110,46 +137,49 @@ def select_teams_random(club_id, session_id, players):
             # Remove ongoing players from the available players list
             available_players = [player for player in players if player[0] not in ongoing_player_ids]
 
-            # Get the number of games played by each player
+            # Get the number of games played
             cur.execute("""
-                SELECT sp.player_id, sp.played
-                FROM sessions_players sp
-                WHERE sp.session_id = %s
+                SELECT session_id, team1_id, team2_id
+                FROM games g
+                WHERE g.session_id = %s
             """, (session_id,))
-            games_played = {row[0]: row[1] for row in cur.fetchall()}
+            games_played = {row[0]: (row[1], row[2]) for row in cur.fetchall()}
 
-            # Sort available players by the number of games played (ascending)
-            available_players.sort(key=lambda player: games_played[player[0]])
+            if not games_played:
+                # Randomly select players to form teams and create a game
+                # Sort available players by the number of games played (ascending)
+                available_players.sort(key=lambda player: 0)
+                selected_players = random.sample(available_players, 4)
+            else:
+                # Sort available players by the number of games played (ascending)
+                available_players.sort(key=lambda player: games_played.get(player[1], 0))
 
-            selected_players = []
-            for _ in range(2):
-                for player in available_players:
-                    player_id = player[0]
-                    recent_teammates = get_recent_teammates(session_id, player_id)
-                    
-                    # Find a player who has not played with the current player recently
-                    for potential_teammate in available_players:
-                        if potential_teammate[0] != player_id and potential_teammate[0] not in recent_teammates:
+                selected_players = []
+                for _ in range(2):
+                    for player in available_players:
+                        player_id = player[0]
+                        recent_teammates = get_recent_teammates(session_id, player_id)
+                        
+                        # Find a player who has not played with the current player recently
+                        for potential_teammate in available_players:
+                            if potential_teammate[0] != player_id and potential_teammate[0] not in recent_teammates:
+                                break
+                        else:
+                            # If no such player is found, choose a random teammate
+                            potential_teammate = random.choice([p for p in available_players if p[0] != player_id])
+
+                        selected_players.append(player)
+                        selected_players.append(potential_teammate)
+
+                        # Remove the selected players from the available players list
+                        available_players.remove(player)
+                        available_players.remove(potential_teammate)
+
+                        if len(selected_players) == 4:
                             break
-                    else:
-                        # If no such player is found, choose a random teammate
-                        potential_teammate = random.choice([p for p in available_players if p[0] != player_id])
-
-                    selected_players.append(player)
-                    selected_players.append(potential_teammate)
-
-                    # Remove the selected players from the available players list
-                    available_players.remove(player)
-                    available_players.remove(potential_teammate)
 
                     if len(selected_players) == 4:
                         break
-
-                if len(selected_players) == 4:
-                    break
-
-            # ... (rest of the function remains unchanged)
-
 
             # Convert the selected players list of tuples into a list of player IDs
             player_ids = [player[0] for player in selected_players]

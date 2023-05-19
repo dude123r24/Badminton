@@ -33,6 +33,7 @@ def report_player_stats_by_session(club_id, season_id):
 
             # Print results in tabular format
             print (" ")
+            print(f"Session ID: {session_id}")
             print_table_header_seperator(140)
             print("\033[1m{:<20} {:<15} {:<15} {:<15} {:<20} {:<20} {:<20} {:<20}\033[0m".format(
                 "Player", "Games Played", "Games Won", "Games Lost", "Win Percentage", "Avg Victory Margin", "Mins, Last Game", "Rank"
@@ -82,6 +83,7 @@ def report_session_games_played(club_id, season_id):
 
             # Print results in tabular format
             print(" ")
+            print(f"Session ID: {session_id}")
             print_table_header_seperator(175)
             print("\033[1m{:<8} {:<20} {:<35} {:<35} {:<35} {:<20} {:<15}\033[0m".format(
                 "Game ID", "Date & Time", "Team 1", "Team 2", "Winner", "Duration (min)", "Game Selection"
@@ -104,3 +106,44 @@ def report_session_games_played(club_id, season_id):
 
 def report_session_player_games_played(club_id, session_id):
     pass
+
+
+def report_session_player_combinations(club_id, season_id):
+    session_id = input("Enter session ID (leave blank to get last session ID): ").strip()
+
+    if not session_id:
+        session_id = get_games_played_last_session_id(club_id)
+    else:
+        with get_connection() as conn:
+            with get_cursor(conn) as cur:
+                cur.execute("""
+                    SELECT id FROM sessions
+                    WHERE club_id = %s AND season_id = %s AND id = %s
+                """, (club_id, season_id, session_id))
+                if not cur.fetchone():
+                    print_error(f"No games were played for this session ({session_id}) for this club.")
+                    return
+
+    with get_connection() as conn:
+        with get_cursor(conn) as cur:
+            cur.execute("""
+                SELECT player_name_1, player_name_2, games_played_together, games_won_together, games_lost_together, 
+                win_percentage_together, rank_in_session FROM player_combinations_by_session 
+                WHERE session_id = %s
+            """, (session_id,))
+            player_stats = cur.fetchall()
+            
+            # Print results in tabular format
+            print (" ")
+            print(f"Session ID: {session_id}")
+            print_table_header_seperator(140)
+            print("\033[1m{:<20} {:<20} {:<15} {:<15} {:<15} {:<20} {:<10}\033[0m".format(
+                "Player1", "Player2", "Played Together", "Won Together", "Lost Together", "Win Percentage", "Rank In Session"
+            ))
+            print_table_header_seperator(140)
+
+            for stats in player_stats:
+                # Replace None values with empty strings
+                stats = tuple('' if value is None else value for value in stats)
+                print("{:<20} {:<20} {:<15} {:<15} {:<15} {:<20} {:<10}".format(*stats))
+

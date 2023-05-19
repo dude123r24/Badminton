@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h1>Player List</h1>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Date Joined</th>
+                <th>Date of Birth</th>
+                <th>Gender</th>
+                <th>Skill Level</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for player in players %}
+                <tr>
+                    <td>{{ player.id }}</td>
+                    <td>{{ player.name }}</td>
+                    <td>{{ player.email }}</td>
+                    <td>{{ player.phone }}</td>
+                    <td>{{ player.date_joined }}</td>
+                    <td>{{ player.dob }}</td>
+                    <td>{{ player.gender }}</td>
+                    <td>{{ player.skill_level }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}
+
+{% block styles %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+{% endblock %}

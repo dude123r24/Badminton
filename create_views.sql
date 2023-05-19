@@ -129,63 +129,74 @@ GROUP BY
 
 
 
-CREATE OR REPLACE VIEW player_combinations_by_session AS
-WITH player_games AS (
+CREATE OR REPLACE VIEW player_combinations_by_session
+as
+WITH player_sessions AS (
          SELECT ss.id AS session_id,
             ss.season_id,
             c.id AS club_id,
             sp.player_id,
             p.name AS player_name,
-            tp.team_id,
-            g.id AS game_id,
-            g.winner_team_id,
-            g.team1_score,
-            g.team2_score,
-                CASE
-                    WHEN g.winner_team_id IS NULL THEN 'draw'::text
-                    WHEN g.winner_team_id = tp.team_id THEN 'won'::text
-                    ELSE 'lost'::text
-                END AS game_result
+            sp.played,
+            sp.won,
+            sp.draw
            FROM sessions ss
              JOIN seasons s ON ss.season_id = s.id
              JOIN clubs c ON s.club_id = c.id
              JOIN sessions_players sp ON ss.id = sp.session_id
              JOIN players p ON sp.player_id = p.id
-             JOIN teams_players tp ON sp.player_id = tp.player_id
-             JOIN games g ON (g.team1_id = tp.team_id OR g.team2_id = tp.team_id) AND ss.id = g.session_id
-        ), teammate_info AS (
-         SELECT pg1.session_id,
-            pg1.season_id,
-            pg1.club_id,
-            LEAST(pg1.player_id, pg2.player_id) AS player_id_1,
-            GREATEST(pg1.player_id, pg2.player_id) AS player_id_2,
-            pg1.game_id,
-            pg1.game_result,
-            pg1.team1_score,
-            pg1.team2_score
-           FROM player_games pg1
-             JOIN player_games pg2 ON pg1.game_id = pg2.game_id AND pg1.team_id = pg2.team_id AND pg1.player_id <> pg2.player_id
+        ), 
+all_player_combinations AS (
+         SELECT ps1.session_id,
+            ps1.season_id,
+            ps1.club_id,
+            ps1.player_id AS player_id_1,
+            ps2.player_id AS player_id_2,
+            ps1.played AS player1_played,
+            ps1.won AS player1_won,
+            ps1.draw AS player1_draw,
+            ps2.played AS player2_played,
+            ps2.won AS player2_won,
+            ps2.draw AS player2_draw
+           FROM player_sessions ps1
+             JOIN player_sessions ps2 ON ps1.session_id = ps2.session_id AND ps1.player_id <> ps2.player_id
+        ),
+teammate_info AS (
+         SELECT apc.session_id,
+            apc.season_id,
+            apc.club_id,
+            apc.player_id_1,
+            apc.player_id_2,
+            count(distinct g.id) AS games_played_together,
+            count(distinct case when g.winner_team_id = tp1.team_id then g.id end) as games_won_together,
+            count(distinct case when g.winner_team_id is null then g.id end) as games_draw_together,
+            count(distinct case when g.winner_team_id != tp1.team_id and g.winner_team_id is not null then g.id end) as games_lost_together
+           FROM all_player_combinations apc
+             JOIN teams_players tp1 ON apc.player_id_1 = tp1.player_id
+             JOIN teams_players tp2 ON apc.player_id_2 = tp2.player_id AND tp1.team_id = tp2.team_id
+             JOIN games g ON g.session_id = apc.session_id AND (g.team1_id = tp1.team_id OR g.team2_id = tp1.team_id)
+          GROUP BY apc.session_id, apc.season_id, apc.club_id, apc.player_id_1, apc.player_id_2
         )
- SELECT 
-    ti.club_id,
+ SELECT ti.club_id,
     ti.season_id,
     ti.session_id,
     p1.id AS player_id_1,
     p1.name AS player_name_1,
     p2.id AS player_id_2,
     p2.name AS player_name_2,
-    count(*) AS games_played,
-    count(*) FILTER (WHERE ti.game_result = 'won'::text) AS games_won,
-    count(*) FILTER (WHERE ti.game_result = 'lost'::text) AS games_lost,
-    count(*) FILTER (WHERE ti.game_result = 'draw'::text) AS games_draw,
-    round((100 * count(*) FILTER (WHERE ti.game_result = 'won'::text) / count(*))::numeric, 2) AS win_percentage,
-    avg(CASE WHEN ti.game_result = 'won' THEN abs(ti.team1_score - ti.team2_score) ELSE NULL END) AS avg_margin_victory,
-    dense_rank() OVER (PARTITION BY ti.session_id, ti.club_id ORDER BY (round((100 * count(*) FILTER (WHERE ti.game_result = 'won'::text) / count(*))::numeric, 2)) DESC, avg(CASE WHEN ti.game_result = 'won' THEN abs(ti.team1_score - ti.team2_score) ELSE NULL END) DESC, (count(*)) DESC) AS session_rank
-   FROM teammate_info ti
-     JOIN players p1 ON ti.player_id_1 = p1.id
-     JOIN players p2 ON ti.player_id_2 = p2.id
-  GROUP BY ti.session_id, ti.season_id, ti.club_id, p1.id, p1.name, p2.id, p2.name
-  ORDER BY ti.club_id, ti.season_id, ti.session_id;
+    ti.games_played_together,
+    ti.games_won_together,
+    ti.games_lost_together,
+    ti.games_draw_together,
+    round((100 * ti.games_won_together / nullif(ti.games_played_together, 0))::numeric, 2) AS win_percentage_together,
+    dense_rank() OVER (
+        PARTITION BY ti.session_id, ti.club_id
+        ORDER BY round((100 * ti.games_won_together / nullif(ti.games_played_together, 0))::numeric, 2) DESC, ti.games_played_together DESC
+    ) AS rank_in_session
+FROM teammate_info ti
+JOIN players p1 ON p1.id = ti.player_id_1
+JOIN players p2 ON p2.id = ti.player_id_2
+ORDER BY ti.club_id, ti.season_id, ti.session_id, p1.id ;
 
 
 CREATE OR REPLACE VIEW player_combinations_by_season AS

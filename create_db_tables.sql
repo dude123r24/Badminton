@@ -4,7 +4,10 @@ CREATE TABLE IF NOT EXISTS players (
    email varchar(75) NOT NULL,
    phone varchar(20) NOT NULL,
    password varchar(128) NOT NULL,
-   date_joined timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+   date_joined timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+   dob date,
+   gender varchar(1),
+   skill_level varchar(10)
 );
 
 CREATE TABLE IF NOT EXISTS clubs (
@@ -17,7 +20,10 @@ CREATE TABLE IF NOT EXISTS clubs (
    locality varchar(255) NOT NULL,
    city varchar(255) NOT NULL,
    country varchar(255) NOT NULL,
-   postcode varchar(255) NOT NULL
+   postcode varchar(255) NOT NULL,
+   website varchar(50),
+   email varchar(75),
+   phone varchar(20)
 );
 
 CREATE TABLE IF NOT EXISTS players_clubs (
@@ -35,7 +41,8 @@ CREATE TABLE IF NOT EXISTS seasons (
    id serial PRIMARY KEY,
    club_id integer NOT NULL REFERENCES clubs(id),
    date_from date NOT NULL,
-   date_to date NOT NULL
+   date_to date NOT NULL,
+   cost number
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
@@ -67,8 +74,14 @@ COMMENT ON COLUMN sessions_players.active IS 'When a player is selected to play 
 
 
 CREATE TABLE IF NOT EXISTS teams (
-   id serial PRIMARY KEY
+   id serial PRIMARY KEY,
+   club_id integer REFERENCES clubs(id)
 );
+
+-- ALTER TABLE public.teams ADD club_id int NULL;
+-- ALTER TABLE public.teams ADD CONSTRAINT teams_fk FOREIGN KEY (club_id) REFERENCES public.clubs(id) ON DELETE CASCADE ON UPDATE CASCADE;
+
+
 
 CREATE TABLE IF NOT EXISTS teams_players (
    team_id integer NOT NULL REFERENCES teams(id),
@@ -89,7 +102,7 @@ CREATE TABLE IF NOT EXISTS games (
    game_selection VARCHAR(15)
 );
 
-CREATE TABLE  IF NOT EXISTS club_options (
+CREATE TABLE IF NOT EXISTS club_options (
   id SERIAL,
   club_id INTEGER NOT NULL REFERENCES clubs(id),
   option_name VARCHAR(255) NOT NULL,

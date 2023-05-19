@@ -1,12 +1,13 @@
-Act like an expert Python programmer to write a program using Postgrsql, Python and Flask to maintain badminton clubs. Each club has seasons which can last 3 to 4 months. Each season has days when a session is played. The games played in a session could be singles or doubles. The program should allow manual team member selection or automatic player assignment to teams. When players are automatically assigned, care should be taken that all players playing that day get equal amount of games, based on how long they've been waiting. Try and assign unique pairs where possible. Maintain each games's scores. Provide player, team stats for the session, season and club. Allow only administrator to amend scores and delete games.
+Act like an expert Python programmer who knows Postgrsql well. 
+I am writing a program in Python to maintain badminton clubs. Each club has seasons. Each season has days when a session is played. The games played in a session could be singles or doubles. My main objective is to let players have similar number of games while letting everyone play with as many unique team mates as possible. 
+Clubs have seasons , one seasons can have many sessions, sessions can have many games, games have 2 teams of 2 players each.
+
+The program should allow manual team member selection or automatic player assignment to teams. When players are automatically assigned, care should be taken that all players playing that day get equal amount of games, based on how long they've been waiting. Try and assign unique pairs where possible. Maintain each games's scores. Provide player, team stats for the session, season and club. Allow only administrator to amend scores and delete games.
 
 
 
 
-Table descriptions:
-===================
-
-Clubs host seasons, seasons have many sessions, sessions have many games, games have 2 teams of 2 players each.
+Below are my Table descriptions:
 
 1. players is a table to store badminton players personal information and login password.
 2. clubs is a table to store badminton club names and its details like city and the player that owns the club.
@@ -20,7 +21,7 @@ Clubs host seasons, seasons have many sessions, sessions have many games, games 
 10. club_options is a table to store preferences for a club. The option_name stores the option and option_value stores the option's value.
 
 
-Table structures for the tables mentioned in the code:
+Below are my Table structures:
 
 players: id (serial primary key), name (varchar(75) not null), email (varchar(75) not null), phone (varchar(20) not null), password (varchar(128) not null), date_joined (timestamp not null default current_timestamp)
 
@@ -43,12 +44,9 @@ games: id (serial primary key), session_id (integer not null references sessions
 club_options: id (serial), club_id (integer not null references clubs(id)), option_name (varchar(255) not null), option_value (varchar(255) not null), created_at (timestamp default now())
 
 
----
-
-view structures without the code to create them:
+Below are my view structures. I prefer to use views when querying:
 
 games_view: game_id, club_id, season_id, session_id, team_1, team_2, team_1_score, team_2_score, winning_team, team_1_player_ids, team_2_player_ids, team_1_player_names, team_2_player_names, game_start_time, game_end_time, game_selection, 
-
 
 player_stats_by_session: club_id, season_id, session_id, session_date, player_id, player_name, played, won, draw, win_percentage, avg_victory_margin, minutes_since_last_game, session_rank
 
@@ -73,12 +71,13 @@ Write a Python program called games.py that includes all the required functions 
 delete_played_game: a function that deletes a previously played game and updates the stats for the players involved.
 get_ongoing_games: a function that retrieves a list of ongoing games for a given session and displays them in a table format.
 To accomplish this, you will need to import various modules, such as random, tabulate, datetime, PrettyTable, and custom modules such as db, utils, players, sessions, and reports. You will also need to write helper functions such as get_team, get_team_player_ids, update_player_stats, and game_exists.
-3. Write a function to Select a custom game. It accepts parameters (club_id, season_id, session_id)
+
+3. Write a function to Select a custom game. Call it manual_game_start. It accepts parameters (club_id, season_id, session_id)
 It asks the user to "Enter session ID (leave blank to get last session ID)". If the user leaves it blank, it uses the session_id passed to the function. 
-It shows the player id and player names of users that played that day from sessions_players.
+It shows the player id and player names of players that played that day from sessions_players. use the function display_club_players_playing_today from players.py
 It asks the user to input id's for player 1 id and player 2 id for team 1.
 It asks the user to input id's for player 1 id and player 2 id for team 2.
-Then it *******************
+Then it 
 
 
 

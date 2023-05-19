@@ -1,0 +1,19 @@
+-- Print how many times people have played together
+
+
+-- Delete an entire session
+
+
+DO $$
+DECLARE
+  id2delete INTEGER := __;
+begin
+  execute 'DELETE FROM teams_players where team_id in (select id from teams where session_id = (select id from sessions WHERE id = $1))' using id2delete;
+  execute 'DELETE FROM games where session_id = (select id from sessions WHERE id = $1)' using id2delete;
+  execute 'DELETE FROM teams where session_id = $1' using id2delete;
+  execute 'DELETE FROM sessions_players where session_id = (select id from sessions WHERE id = $1)' using id2delete;
+  EXECUTE 'DELETE FROM sessions WHERE id = $1' USING id2delete;
+  END $$;
+
+
+-- 
